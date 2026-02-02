@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.hypothesis/
+
+# Virtual environments
+.venv/
+.env
+.env.*
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data & outputs
+data/raw/
+data/processed/
+data/*.zip
+runs/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npy
+*.npz
+*.wav
+*.flac
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

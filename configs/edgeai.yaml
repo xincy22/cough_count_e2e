@@ -1,0 +1,42 @@
+seed: 0
+
+data:
+  split_train: "train"
+  split_val: "val"
+  mic: "both"
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+
+loader:
+  batch_size: 16
+  num_workers: 4
+  pos_fraction: 0.5
+
+train:
+  epochs: 1000
+  lr: 1e-3
+  weight_decay: 0.0
+  device: "cuda"
+  lr_cycle_epochs: 10
+  lr_eta_min: 1e-6
+
+model:
+  name: "cnn1d"   # cnn1d | tcn | crnn
+  presets:
+    cnn1d:
+      channels: [256, 256, 128]
+      kernel_size: 5
+      dropout: 0.1
+    tcn:
+      channels: 256
+      layers: 6
+      kernel_size: 3
+      dropout: 0.1
+      dilation_base: 2
+    crnn:
+      cnn_channels: [256, 256]
+      kernel_size: 5
+      rnn_hidden: 256
+      rnn_layers: 1
+      dropout: 0.1
