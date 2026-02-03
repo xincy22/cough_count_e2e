@@ -98,6 +98,21 @@ class EdgeAIWindowDataset(Dataset):
         if not self.samples:
             raise RuntimeError(f"No samples found in {self.npy_dir} (mic={mic})")
 
+        self._data_cache: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+
+        print(f"Loading {len(self.samples)} samples into memory...")
+        for si, sp in enumerate(self.samples):
+            S = np.load(sp.S_path).astype(np.float32)
+            density = np.load(sp.density_path).astype(np.float32)
+            t = np.load(sp.t_path)
+            self._data_cache[si] = (S, density, t)
+        
+        total_mb = sum(
+            s[0].nbytes + s[1].nbytes + s[2].nbytes 
+            for s in self._data_cache.values()
+        ) / (1024**2)
+        print(f"Loaded {len(self._data_cache)} samples ({total_mb:.2f} MB)")
+
         self.windows: list[Window] = []
         self.pos_idx: list[int] = []
         self.neg_idx: list[int] = []
@@ -157,9 +172,14 @@ class EdgeAIWindowDataset(Dataset):
 
         return samples
 
+    def _get_sample_data(self, si: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """从缓存获取样本数据（已在 __init__ 中加载）"""
+        return self._data_cache[si]
+
     def _index_windows(self) -> None:
         for si, sp in enumerate(self.samples):
-            t = np.load(sp.t_path, mmap_mode="r")  # [T] seconds
+            _, density, t = self._get_sample_data(si)
+            
             if t.shape[0] == 0:
                 continue
 
@@ -168,8 +188,6 @@ class EdgeAIWindowDataset(Dataset):
             starts = build_window_starts(duration, self.window_sec, self.hop_sec)
             if not starts:
                 continue
-
-            density = np.load(sp.density_path, mmap_mode="r")  # [T]
 
             for s in starts:
                 start_sec = t0 + float(s)
@@ -196,11 +214,11 @@ class EdgeAIWindowDataset(Dataset):
         w = self.windows[int(idx)]
         sp = self.samples[w.si]
 
-        S = np.load(sp.S_path, mmap_mode="r")  # [F, T]
-        y = np.load(sp.density_path, mmap_mode="r")  # [T]
+        S, density, _ = self._get_sample_data(w.si)
 
-        S_win = np.asarray(S[:, w.left : w.right], dtype=np.float32).copy()
-        y_win = np.asarray(y[w.left : w.right], dtype=np.float32).copy()
+        # 直接切片（数据已在内存中）
+        S_win = S[:, w.left : w.right]
+        y_win = density[w.left : w.right]
 
         count = float(y_win.sum())
         is_pos = 1 if count > self.pos_threshold else 0

@@ -20,12 +20,13 @@ train:
   device: "cuda"
   lr_cycle_epochs: 10
   lr_eta_min: 1e-6
+  count_loss_weight: 0.1
 
 model:
   name: "cnn1d"   # cnn1d | tcn | crnn
   presets:
     cnn1d:
-      channels: [256, 256, 128]
+      channels: [256, 256, 128, 64]
       kernel_size: 5
       dropout: 0.1
     tcn:

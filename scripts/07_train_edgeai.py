@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from coughcount.data.dataset import EdgeAIWindowDataset, pad_collate
 from coughcount.data.sampling import BalancedSampler
-from coughcount.losses import count_mae, masked_mse
+from coughcount.losses import count_mae, masked_mse, train_loss
 from coughcount.models.builder import build_model
 from coughcount.paths import ProjectPaths as P
 
@@ -229,6 +229,8 @@ def main() -> None:
         train_losses: list[float] = []
         train_maes: list[float] = []
 
+        count_loss_weight = float(train_cfg.get("count_loss_weight", 0.1))
+
         pbar = tqdm(dl_train, desc=f"train e{epoch}/{epochs}", dynamic_ncols=True)
         for batch in pbar:
             x = batch["x"].to(device)
@@ -236,7 +238,7 @@ def main() -> None:
             lengths = batch["lengths"].to(device)
 
             pred = model(x)
-            loss = masked_mse(pred, y, lengths)
+            loss = train_loss(pred, y, lengths, count_loss_weight=count_loss_weight)
 
             opt.zero_grad(set_to_none=True)
             loss.backward()
