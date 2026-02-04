@@ -14,16 +14,24 @@ loader:
   pos_fraction: 0.5
 
 train:
-  epochs: 1000
-  lr: 1e-3
+  epochs: 2000
+  lr: 1.0e-3
   weight_decay: 0.0
   device: "cuda"
-  lr_cycle_epochs: 10
-  lr_eta_min: 1e-6
+  lr_cycle_epochs: 100
+  lr_eta_min: 1.0e-8
   count_loss_weight: 0.1
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.95
+    alpha: 0.5
+    min_pos_weight: 1.0
+    max_pos_weight: 6.0
+    warmup_epochs: 1
+
 
 model:
-  name: "cnn1d"   # cnn1d | tcn | crnn
+  name: "tcn"   # cnn1d | tcn | crnn
   presets:
     cnn1d:
       channels: [256, 256, 128, 64]
@@ -31,7 +39,7 @@ model:
       dropout: 0.1
     tcn:
       channels: 256
-      layers: 6
+      layers: 8
       kernel_size: 3
       dropout: 0.1
       dilation_base: 2

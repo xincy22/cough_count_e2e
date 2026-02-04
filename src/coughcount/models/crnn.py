@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class CRNN(nn.Module):
@@ -52,4 +53,5 @@ class CRNN(nn.Module):
         h = self.cnn(x)  # [B, C, T]
         h = h.transpose(1, 2)  # [B, T, C]
         h, _ = self.rnn(h)  # [B, T, H]
-        return self.head(h).squeeze(-1)
+        y = self.head(h).squeeze(-1)
+        return F.softplus(y)

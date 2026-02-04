@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class _TCNBlock(nn.Module):
@@ -61,5 +62,5 @@ class TCN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.in_proj(x)
         h = self.blocks(h)
-        y = self.head(h)
-        return y.squeeze(1)
+        y = self.head(h).squeeze(1)
+        return F.softplus(y)
