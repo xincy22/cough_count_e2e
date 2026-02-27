@@ -1,0 +1,44 @@
+seed: 42
+
+data:
+  split_train: "train"
+  split_val: "val"
+  splits_json: "data/processed/edgeai/splits.json"
+  mic: "both"
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+
+loader:
+  batch_size: 24
+  num_workers: 8
+  pos_fraction: 0.65
+
+train:
+  epochs: 240
+  lr: 8.0e-5
+  weight_decay: 1.0e-4
+  device: "cuda"
+  lr_cycle_epochs: 240
+  lr_eta_min: 1.0e-8
+  count_loss_weight: 0.35
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.95
+    alpha: 0.7
+    min_pos_ratio: 0.666667
+    max_pos_ratio: 0.888889
+    warmup_epochs: 1
+
+model:
+  name: "tcn_gru"
+  presets:
+    tcn_gru:
+      tcn_channels: 192
+      tcn_layers: 6
+      tcn_kernel_size: 3
+      dilation_base: 2
+      gru_hidden: 192
+      gru_layers: 1
+      bidirectional: false
+      dropout: 0.1
