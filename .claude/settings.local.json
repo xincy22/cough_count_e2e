@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit",
+      "FileWrite",
+      "FileRead",
+      "Bash",
+      "Git"
+    ]
+  }
+}

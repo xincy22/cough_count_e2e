@@ -1,0 +1,62 @@
+# Data Preparation Experiment
+# Run these scripts once to prepare the dataset
+
+name: "edgeai_data_prep"
+description: "EdgeAI数据预处理：下载、构建manifest、分割数据、预计算窗口"
+
+# Random seed
+seed: 42
+
+# Download configuration
+download:
+  url: "https://github.com/felipeagapito/edgeai_cough_detection/raw/main/public_dataset.zip"
+  raw_dir: "../../../data/raw/edgeai"
+
+# Manifest configuration
+manifest:
+  output: "../../../data/processed/edgeai/manifest.csv"
+
+# Split configuration
+split:
+  output: "../../../data/processed/edgeai/splits.json"
+  val_subjects: ["sub13", "sub14", "sub15"]
+  test_subjects: ["sub11", "sub12"]
+  seed: 42
+
+# Precompute configuration
+precompute:
+  mic: "both"  # "out", "body", or "both"
+  output_dir: "../../../data/processed/edgeai/npy"
+  stft:
+    win: 1024
+    hop: 256
+  density:
+    kernel: "gaussian"  # "gaussian", "skewed_gaussian", "cosine"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.04
+    sigma_right_sec: 0.08
+
+# Visualization configuration
+visualization:
+  index: -1  # -1 for random, >=0 for specific sample
+  seed: 0
+  sigma: 0.05
+  mic: "out"  # "out" or "body"
+
+# Dataloader check configuration
+dataloader_check:
+  split: "train"
+  mic: "both"
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+  batch_size: 16
+  pos_frac: 0.5
+  num_workers: 0
+  max_batches: 5
+
+# Data output paths
+data_output:
+  manifest: "data/processed/edgeai/manifest.csv"
+  splits: "data/processed/edgeai/splits.json"
+  npy_dir: "data/processed/edgeai/npy"

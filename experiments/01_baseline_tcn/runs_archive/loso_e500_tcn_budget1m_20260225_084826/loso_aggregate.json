@@ -1,0 +1,5 @@
+{
+  "n_folds": 15,
+  "mean_test_count_mae": 0.5779870004278114,
+  "mean_test_pos_mae": 1.6101484041177199
+}

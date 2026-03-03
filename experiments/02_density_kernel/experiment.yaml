@@ -1,0 +1,146 @@
+# Density Kernel Comparison Experiment
+# Compare different density kernel configurations for cough counting
+
+name: "density_kernel_comparison"
+description: "对比不同density核函数配置下的模型性能"
+
+hypothesis: "更宽/更匹配咳嗽特征的density核能改善模型性能"
+
+# Random seed
+seed: 42
+
+# Base data configuration (references pre-computed data from 00_data_prep)
+data:
+  base_npy_dir: "../../../data/processed/edgeai/npy"
+  splits_json: "../../../data/processed/edgeai/splits.json"
+  split_train: "train"
+  split_val: "val"
+  mic: "both"
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+
+# Density kernel variants to compare
+kernels:
+  - id: "1A"
+    name: "gaussian_50ms"
+    kernel: "gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.04
+    sigma_right_sec: 0.08
+    description: "当前默认配置"
+    data_dir: "gaussian_sigma50ms"
+
+  - id: "1B"
+    name: "gaussian_100ms"
+    kernel: "gaussian"
+    sigma_sec: 0.10
+    sigma_left_sec: 0.04
+    sigma_right_sec: 0.08
+    description: "更宽的高斯核"
+    data_dir: "gaussian_sigma100ms"
+
+  - id: "1C"
+    name: "gaussian_150ms"
+    kernel: "gaussian"
+    sigma_sec: 0.15
+    sigma_left_sec: 0.04
+    sigma_right_sec: 0.08
+    description: "更宽的高斯核，测试过度平滑"
+    data_dir: "gaussian_sigma150ms"
+
+  - id: "1D"
+    name: "skewed_40_80"
+    kernel: "skewed_gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.04
+    sigma_right_sec: 0.08
+    description: "左窄右宽"
+    data_dir: "skewed_l40ms_r80ms"
+
+  - id: "1E"
+    name: "skewed_30_100"
+    kernel: "skewed_gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.03
+    sigma_right_sec: 0.10
+    description: "更不对称的skewed高斯核"
+    data_dir: "skewed_l30ms_r100ms"
+
+  - id: "1F"
+    name: "cosine_100ms"
+    kernel: "cosine"
+    sigma_sec: 0.10
+    sigma_left_sec: 0.04
+    sigma_right_sec: 0.08
+    description: "余弦核"
+    data_dir: "cosine_half100ms"
+
+# Data loader configuration
+loader:
+  batch_size: 24
+  num_workers: 8
+  pos_fraction: 0.7
+  val_equal_pos_neg: true
+  val_balance_seed: 42
+  pin_memory: true
+  persistent_workers: true
+
+# Training configuration (shared across all kernel variants)
+training:
+  epochs: 500
+  lr: 1.0e-3
+  weight_decay: 0.0
+  device: "cuda"
+  best_metric: "val_count_mae"
+  val_metric_pos_weight: 1.0
+  val_metric_neg_weight: 1.0
+  lr_cycle_epochs: 100
+  lr_eta_min: 1.0e-8
+
+  # Loss weights
+  count_loss_weight: 0.2
+  count_loss_mode: "mae"
+  count_rel_eps: 1.0
+  under_count_weight: 0.0
+  under_count_positive_only: true
+  equal_pos_neg_influence: false
+
+  # Dynamic pos/neg loss balancer
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.9
+    alpha: 0.8
+    min_pos_ratio: 0.1
+    max_pos_ratio: 0.9
+    warmup_epochs: 2
+
+# Model configuration
+model:
+  name: "tcn"
+  presets:
+    tcn:
+      channels: 128
+      layers: 6
+      kernel_size: 3
+      dilation_base: 2
+      dropout: 0.1
+
+# LOSO configuration
+loso:
+  enabled: false  # Set to true for LOSO evaluation
+  models: ["tcn"]
+  exp_name: ""
+  epochs: null
+  device: null
+  batch_size: null
+  num_workers: null
+
+# Output paths
+output:
+  runs_dir: "runs"
+
+# Evaluation metrics
+metrics:
+  primary: "val_count_mae_pos"
+  secondary: ["val_mean_pred_count_on_neg", "val_count_mae"]

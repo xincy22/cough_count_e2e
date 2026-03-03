@@ -1,0 +1,45 @@
+seed: 0
+data:
+  split_train: train
+  split_val: val
+  mic: both
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+  normalize: per_freq
+  splits_json: /root/cough_count_e2e/data/processed/edgeai/loso/fold_00_14287.json
+loader:
+  batch_size: 64
+  num_workers: 0
+  pos_fraction: 0.3
+train:
+  epochs: 500
+  lr: 0.001
+  weight_decay: 0.0001
+  device: cuda
+  lr_cycle_epochs: 100
+  lr_eta_min: 1.0e-08
+  count_loss_weight: 0.2
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.95
+    alpha: 0.5
+    min_pos_weight: 1.0
+    max_pos_weight: 6.0
+    warmup_epochs: 1
+    count_pos_boost: 1.0
+    count_neg_boost: 1.0
+  count_focus:
+    enabled: false
+    pos_base_weight: 1.0
+    pos_count_power: 0.0
+    under_predict_boost: 1.0
+    max_weight: 8.0
+model:
+  name: tcn
+  params:
+    channels: 144
+    layers: 8
+    kernel_size: 3
+    dropout: 0.1
+    dilation_base: 2

@@ -1,0 +1,96 @@
+# Baseline TCN Model Experiment
+# 使用默认配置训练TCN模型作为基线
+
+name: "baseline_tcn"
+description: "使用当前默认配置训练TCN模型作为基线"
+
+# Random seed
+seed: 42
+
+# Data configuration
+data:
+  npy_dir: "data/processed/edgeai/npy"
+  splits_json: "data/processed/edgeai/splits.json"
+  split_train: "train"
+  split_val: "val"
+  mic: "both"
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+
+# Data loader configuration
+loader:
+  batch_size: 24
+  num_workers: 8
+  pos_fraction: 0.7
+  val_equal_pos_neg: true
+  val_balance_seed: 42
+  pin_memory: true
+  persistent_workers: true
+
+# Training configuration
+training:
+  epochs: 500
+  lr: 1.0e-3
+  weight_decay: 0.0
+  device: "cuda"
+  best_metric: "val_count_mae"
+  val_metric_pos_weight: 1.0
+  val_metric_neg_weight: 1.0
+  lr_cycle_epochs: 100
+  lr_eta_min: 1.0e-8
+
+  # Loss weights
+  count_loss_weight: 0.2
+  count_loss_mode: "mae"
+  count_rel_eps: 1.0
+  under_count_weight: 0.0
+  under_count_positive_only: true
+  equal_pos_neg_influence: false
+
+  # Dynamic pos/neg loss balancer
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.9
+    alpha: 0.8
+    min_pos_ratio: 0.1
+    max_pos_ratio: 0.9
+    warmup_epochs: 2
+
+# Model configuration
+model:
+  name: "tcn"
+  presets:
+    tcn:
+      channels: 128
+      layers: 6
+      kernel_size: 3
+      dilation_base: 2
+      dropout: 0.1
+
+# LOSO configuration
+loso:
+  enabled: false  # Single run for baseline
+  # When running LOSO, these override the base config
+  models: ["tcn"]  # Models to compare in LOSO
+  exp_name: ""  # Leave empty for auto-generated name
+  epochs: null  # null = use training.epochs
+  device: null  # null = use training.device
+  batch_size: null  # null = use loader.batch_size
+  num_workers: null  # null = use loader.num_workers
+
+# Test configuration
+test:
+  split: "test"
+  batch_size: null  # null = use loader.batch_size
+  num_workers: null  # null = use loader.num_workers
+  device: null  # null = use training.device
+
+# Output paths
+output:
+  runs_dir: "runs"
+
+# Expected results
+expected_metrics:
+  val_count_mae: ~0.5
+  val_count_mae_pos: ~1.5

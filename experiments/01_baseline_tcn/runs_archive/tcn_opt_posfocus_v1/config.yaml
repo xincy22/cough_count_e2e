@@ -1,0 +1,44 @@
+seed: 42
+data:
+  split_train: train
+  split_val: val
+  splits_json: data/processed/edgeai/splits.json
+  mic: both
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+loader:
+  batch_size: 24
+  num_workers: 8
+  pos_fraction: 0.68
+  val_equal_pos_neg: true
+  val_balance_seed: 42
+train:
+  epochs: 320
+  lr: 0.00012
+  weight_decay: 0.0001
+  device: cuda
+  best_metric: val_weighted_count_mae
+  val_metric_pos_weight: 1.0
+  val_metric_neg_weight: 1.0
+  lr_cycle_epochs: 320
+  lr_eta_min: 1.0e-08
+  count_loss_weight: 0.4
+  under_count_weight: 0.2
+  under_count_positive_only: true
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.95
+    alpha: 1.05
+    min_pos_ratio: 0.78
+    max_pos_ratio: 0.92
+    warmup_epochs: 1
+model:
+  name: tcn
+  presets:
+    tcn:
+      channels: 192
+      layers: 7
+      kernel_size: 3
+      dropout: 0.1
+      dilation_base: 2

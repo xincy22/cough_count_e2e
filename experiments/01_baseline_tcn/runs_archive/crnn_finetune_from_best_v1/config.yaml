@@ -1,0 +1,39 @@
+seed: 42
+data:
+  split_train: train
+  split_val: val
+  splits_json: data/processed/edgeai/splits.json
+  mic: both
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+loader:
+  batch_size: 24
+  num_workers: 8
+  pos_fraction: 0.65
+train:
+  epochs: 240
+  lr: 0.0001
+  weight_decay: 0.0001
+  device: cuda
+  lr_cycle_epochs: 240
+  lr_eta_min: 1.0e-08
+  count_loss_weight: 0.35
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.95
+    alpha: 0.7
+    min_pos_weight: 2.0
+    max_pos_weight: 8.0
+    warmup_epochs: 1
+model:
+  name: crnn
+  presets:
+    crnn:
+      cnn_channels:
+      - 256
+      - 256
+      kernel_size: 5
+      rnn_hidden: 256
+      rnn_layers: 1
+      dropout: 0.1

@@ -1,0 +1,11 @@
+{
+  "mse": 0.00033843817590144536,
+  "count_mae": 0.8367069367102186,
+  "count_mae_pos": 1.8499333704671552,
+  "count_mae_neg": 0.5194340130085516,
+  "mean_pred_count_on_neg": 0.5194340130085516,
+  "mean_gt_count_on_pos": 11.175300998072471,
+  "num_samples": 260,
+  "num_pos": 62,
+  "num_neg": 198
+}

@@ -1,0 +1,18 @@
+{
+  "epoch": 297,
+  "lr": 0.00010636400371352997,
+  "train_mse": 0.020219452236946538,
+  "train_count_mae": 0.05103002779400177,
+  "val_mse": 0.00023668949183451736,
+  "val_count_mae": 0.48537201724118656,
+  "val_count_mae_pos": 1.6792559930019908,
+  "val_count_mae_neg": 0.17815500905594994,
+  "val_mean_pred_count_on_neg": 0.17815500905594994,
+  "val_mean_gt_count_on_pos": 12.510613282521566,
+  "val_selection_metric_name": "val_count_mae",
+  "val_selection_metric": 0.48537201724118656,
+  "checkpoint": "best.pt",
+  "criterion": "val_count_mae",
+  "count_loss_weight": 0.25,
+  "updated_at": "2026-02-27 16:50:53"
+}
