@@ -25,6 +25,9 @@ htmlcov/
 .vscode/
 .idea/
 
+# Claude Code (local working directory)
+.claude/
+
 # Jupyter
 .ipynb_checkpoints/
 
@@ -32,6 +35,7 @@ htmlcov/
 data/raw/
 data/processed/
 data/*.zip
+results/
 experiments/*/runs/
 experiments/*/runs_archive/
 experiments/*/data/
