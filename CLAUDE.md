@@ -74,6 +74,7 @@ experiments/<exp_name>/
 │   └── 03_evaluate.py      # python scripts/03_evaluate.py
 ├── data/                    # This experiment's data
 ├── runs/                    # Training outputs (gitignored)
+├── result/                  # Experiment results (summaries, reports)
 └── README.md                # Experiment description
 ```
 
@@ -127,6 +128,21 @@ python scripts/03_evaluate.py
 - **Raw data**: `data/raw/edgeai/public_dataset/` (downloaded once)
 - **Processed data**: `experiments/<exp>/data/` (per-experiment)
 - **Splits**: `data/processed/edgeai/splits.json` (shared or generated per-experiment)
+
+### Results Organization
+
+**IMPORTANT**: All experiment results MUST be organized in each experiment's own `result/` folder:
+
+```
+experiments/<exp_name>/result/
+├── experiment_summary_<timestamp>.json    # Numerical results
+├── experiment_report_<timestamp>.md       # Human-readable report
+└── figures/                               # Plots and visualizations
+```
+
+- **DO NOT** put result files in the repository root directory
+- Each experiment's `scripts/XX_evaluate.py` should save outputs to `experiments/<exp_name>/result/`
+- Use timestamp suffixes for versioning: `summary_20260304_120000.json`
 
 ## Dependencies
 

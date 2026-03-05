@@ -1,6 +1,6 @@
 """
-训练脚本 - 为所有density核函数变体训练模型
-从experiment.yaml读取配置，迭代训练所有6种核函数配置
+训练脚本 - 为每个模型架构训练单个模型
+从experiment.yaml读取配置，训练TCN/TCN_GRU/CRNN模型
 """
 from __future__ import annotations
 
@@ -84,23 +84,35 @@ def _infer_best_values(history: list[dict[str, Any]]) -> tuple[float, float]:
     return best_val, best_count
 
 
-def train_single_run(
+def train_single_model(
+    model_cfg: dict,
     cfg: dict[str, Any],
     *,
     run_dir: Path,
     resume: bool,
 ) -> dict[str, Any]:
+    """训练单个模型"""
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
-    save_run_config(run_dir, cfg)
 
-    train_cfg = cfg.get("training", {})
+    # Prepare config for this model
+    model_run_cfg = copy.deepcopy(cfg)
+    model_run_cfg["model"] = {
+        "name": model_cfg["architecture"]["type"],
+        "presets": {
+            model_cfg["architecture"]["type"]: model_cfg["architecture"]
+        }
+    }
+
+    save_run_config(run_dir, model_run_cfg)
+
+    train_cfg = model_run_cfg.get("training", {})
     device = pick_device(train_cfg.get("device", "cuda"))
     print(f"\n[train] run_dir={run_dir}")
     print(f"[train] device={device}")
 
-    components = prepare_training_components(cfg, device=device)
-    loss_balancer = build_dynamic_pos_neg_loss_balancer(cfg)
+    components = prepare_training_components(model_run_cfg, device=device)
+    loss_balancer = build_dynamic_pos_neg_loss_balancer(model_run_cfg)
 
     print(
         f"[train] train_windows={len(components.train_dataset)} "
@@ -112,7 +124,7 @@ def train_single_run(
         f"{' [balanced 1:1]' if components.val_is_balanced else ''}"
     )
     print(
-        f"[train] model={cfg['model']['name']} "
+        f"[train] model={model_cfg['name']} "
         f"params={count_trainable_params(components.model):,}"
     )
 
@@ -230,7 +242,7 @@ def train_single_run(
 
         best_val, best_count = save_epoch_artifacts(
             run_dir=run_dir,
-            cfg=cfg,
+            cfg=model_run_cfg,
             epoch=epoch,
             model=components.model,
             optimizer=components.optimizer,
@@ -262,12 +274,12 @@ def main() -> None:
     cfg = load_config()
 
     # Parse CLI args for runtime overrides
-    parser = argparse.ArgumentParser(description="Train all density kernel variants.")
+    parser = argparse.ArgumentParser(description="Train models for LOSO comparison.")
     parser.add_argument(
-        "--kernel-id",
+        "--model-id",
         type=str,
         default=None,
-        help="Train only a specific kernel (e.g., '1A', '1B', etc.)",
+        help="Train only a specific model (e.g., 'M1', 'M2', 'M3')",
     )
     parser.add_argument(
         "--epochs",
@@ -298,7 +310,12 @@ def main() -> None:
 
     # Get base data path
     exp_dir = Path(__file__).parent.parent
-    base_data_dir = exp_dir / "data"
+    data_dir = exp_dir / "data"
+
+    if not data_dir.exists():
+        print(f"Error: data directory {data_dir} does not exist")
+        print("Please run scripts/01_precompute.py first")
+        return
 
     # Get output directory
     runs_dir = Path(cfg["output"]["runs_dir"])
@@ -306,54 +323,45 @@ def main() -> None:
         runs_dir = exp_dir / runs_dir
     runs_dir.mkdir(parents=True, exist_ok=True)
 
-    kernels = cfg["kernels"]
-    if args.kernel_id:
-        kernels = [k for k in kernels if k["id"] == args.kernel_id]
-        if not kernels:
-            print(f"Error: kernel_id '{args.kernel_id}' not found")
+    # Update config with data paths
+    cfg["data"]["npy_dir"] = str(data_dir.resolve())
+    cfg["data"]["splits_json"] = str((data_dir / "splits.json").resolve())
+
+    if args.epochs is not None:
+        cfg["training"]["epochs"] = int(args.epochs)
+    if args.device is not None:
+        cfg["training"]["device"] = str(args.device)
+    if args.pos_fraction is not None:
+        cfg["loader"]["pos_fraction"] = float(args.pos_fraction)
+        print(f"[config] pos_fraction overridden to {args.pos_fraction}")
+
+    models = cfg["models"]
+    if args.model_id:
+        models = [m for m in models if m["id"] == args.model_id]
+        if not models:
+            print(f"Error: model_id '{args.model_id}' not found")
             return
 
     results = []
 
-    for kernel_cfg in kernels:
-        kernel_id = kernel_cfg["id"]
-        kernel_name = kernel_cfg["name"]
-        data_dir = base_data_dir / kernel_cfg["data_dir"]
+    for model_cfg in models:
+        model_id = model_cfg["id"]
+        model_name = model_cfg["name"]
 
-        if not data_dir.exists():
-            print(f"Warning: data directory {data_dir} does not exist, skipping {kernel_id}")
-            continue
-
-        # Prepare config for this kernel
-        kernel_run_cfg = copy.deepcopy(cfg)
-        kernel_run_cfg["data"]["npy_dir"] = str(data_dir.resolve())
-        kernel_run_cfg["data"]["splits_json"] = str((data_dir / "splits.json").resolve())
-        kernel_run_cfg["data"]["density_kernel"] = kernel_cfg
-
-        if args.epochs is not None:
-            kernel_run_cfg["training"]["epochs"] = int(args.epochs)
-        if args.device is not None:
-            kernel_run_cfg["training"]["device"] = str(args.device)
-        if args.pos_fraction is not None:
-            kernel_run_cfg["loader"]["pos_fraction"] = float(args.pos_fraction)
-            print(f"[config] pos_fraction overridden to {args.pos_fraction}")
-
-        run_dir = runs_dir / kernel_id
+        run_dir = runs_dir / model_id
         run_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"\n{'='*60}")
-        print(f"Kernel {kernel_id}: {kernel_name}")
+        print(f"Model {model_id}: {model_name}")
         print(f"{'='*60}")
-        print(f"Data: {data_dir}")
-        print(f"Run dir: {run_dir}")
-        print(f"Description: {kernel_cfg['description']}")
+        print(f"Description: {model_cfg['description']}")
 
-        train_summary = train_single_run(kernel_run_cfg, run_dir=run_dir, resume=resume)
+        train_summary = train_single_model(model_cfg, cfg, run_dir=run_dir, resume=resume)
 
         # Evaluate on test set
-        eval_batch = int(kernel_run_cfg.get("loader", {}).get("batch_size", 16))
-        eval_workers = int(kernel_run_cfg.get("loader", {}).get("num_workers", 4))
-        eval_device = str(kernel_run_cfg.get("training", {}).get("device", "cuda"))
+        eval_batch = int(cfg.get("loader", {}).get("batch_size", 16))
+        eval_workers = int(cfg.get("loader", {}).get("num_workers", 4))
+        eval_device = str(cfg.get("training", {}).get("device", "cuda"))
         test_metrics, out_file, ckpt_path = evaluate_run_on_split(
             run_dir,
             split="test",
@@ -363,9 +371,8 @@ def main() -> None:
         )
 
         result = {
-            "kernel_id": kernel_id,
-            "kernel_name": kernel_name,
-            "data_dir": str(data_dir),
+            "model_id": model_id,
+            "model_name": model_name,
             "run_dir": str(run_dir.resolve()),
             "checkpoint": str(ckpt_path.resolve()),
             "train_summary": train_summary,
@@ -373,7 +380,7 @@ def main() -> None:
         }
         results.append(result)
 
-        print(f"\n[{kernel_id}] Test results:")
+        print(f"\n[{model_id}] Test results:")
         print(f"  count_mae: {test_metrics['count_mae']:.4f}")
         print(f"  count_mae_pos: {test_metrics['count_mae_pos']:.4f}")
         print(f"  count_mae_neg: {test_metrics['count_mae_neg']:.4f}")
@@ -382,25 +389,25 @@ def main() -> None:
     summary = {
         "experiment": cfg["name"],
         "timestamp": time.strftime("%Y%m%d_%H%M%S"),
-        "kernels_tested": len(results),
+        "models_tested": len(results),
         "results": results,
     }
-    summary_path = runs_dir / "kernel_comparison_summary.json"
+    summary_path = runs_dir / "model_comparison_summary.json"
     atomic_write_json(summary_path, summary)
 
     # Print comparison table
     print(f"\n{'='*80}")
-    print("KERNEL COMPARISON SUMMARY")
+    print("MODEL COMPARISON SUMMARY")
     print(f"{'='*80}")
-    print(f"{'ID':<5} {'Name':<20} {'Val MAE':<10} {'Val Pos MAE':<12} {'Test MAE':<10}")
+    print(f"{'ID':<5} {'Name':<20} {'Val MAE':<10} {'Test MAE':<10} {'Test Pos MAE':<12}")
     print("-" * 80)
     for r in results:
         print(
-            f"{r['kernel_id']:<5} "
-            f"{r['kernel_name']:<20} "
+            f"{r['model_id']:<5} "
+            f"{r['model_name']:<20} "
             f"{r['train_summary']['best_val_count_mae']:<10.4f} "
-            f"{r['test_metrics']['count_mae_pos']:<12.4f} "
-            f"{r['test_metrics']['count_mae']:<10.4f}"
+            f"{r['test_metrics']['count_mae']:<10.4f} "
+            f"{r['test_metrics']['count_mae_pos']:<12.4f}"
         )
 
     print(f"\nSummary saved to {summary_path}")

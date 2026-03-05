@@ -1,10 +1,9 @@
 """
-Density图预计算脚本 - 为所有核函数变体预计算数据
-从experiment.yaml读取配置，为所有6种核函数变体生成密度图
+Density图预计算脚本 - 使用最佳density核配置
+从experiment.yaml读取density配置，生成密度图
 """
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 
@@ -34,24 +33,31 @@ def _parse_list(value: str) -> np.ndarray:
     return np.array(json.loads(value), dtype=np.float32)
 
 
-def precompute_kernel(
-    kernel_cfg: dict,
-    base_output_dir: Path,
+def precompute_best_kernel(
+    density_cfg: dict,
+    output_dir: Path,
     mic: str = "both",
     stft_win: int = 1024,
     stft_hop: int = 256,
 ) -> Path:
-    """为单个核函数配置预计算密度图"""
-    out_dir = base_output_dir / kernel_cfg["data_dir"]
-    out_dir.mkdir(parents=True, exist_ok=True)
+    """使用最佳核函数配置预计算密度图"""
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    kernel = kernel_cfg["kernel"]
-    sigma_sec = kernel_cfg.get("sigma_sec", 0.05)
-    sigma_left_sec = kernel_cfg.get("sigma_left_sec", 0.04)
-    sigma_right_sec = kernel_cfg.get("sigma_right_sec", 0.08)
+    kernel = density_cfg["kernel"]
+    sigma_sec = density_cfg.get("sigma_sec", 0.05)
+    sigma_left_sec = density_cfg.get("sigma_left_sec", 0.04)
+    sigma_right_sec = density_cfg.get("sigma_right_sec", 0.08)
 
-    print(f"=== Kernel: {kernel_cfg['name']} ===")
-    print(f"Output: {out_dir}\n")
+    print(f"=== Best Density Kernel ===")
+    print(f"Kernel: {kernel}")
+    if kernel == "gaussian":
+        print(f"  sigma_sec: {sigma_sec}")
+    elif kernel == "skewed_gaussian":
+        print(f"  sigma_left_sec: {sigma_left_sec}")
+        print(f"  sigma_right_sec: {sigma_right_sec}")
+    elif kernel == "cosine":
+        print(f"  half_width_sec: {sigma_sec}")
+    print(f"Output: {output_dir}\n")
 
     df = pd.read_csv(P.edgeai_manifest_csv)
     public_root = P.edgeai_raw / "public_dataset"
@@ -62,7 +68,7 @@ def precompute_kernel(
         wav_col = "out_wav" if mic_name == "out" else "body_wav"
         df_mic = df[df[wav_col].astype(str).str.len() > 0].reset_index(drop=True)
 
-        mic_dir = out_dir / mic_name
+        mic_dir = output_dir / mic_name
         mic_dir.mkdir(parents=True, exist_ok=True)
 
         for _, row in tqdm(
@@ -127,50 +133,34 @@ def precompute_kernel(
 
     # Copy splits.json
     splits_src = P.edgeai_splits_json
-    splits_dst = out_dir / "splits.json"
+    splits_dst = output_dir / "splits.json"
     if splits_src.exists() and not splits_dst.exists():
         import shutil
         shutil.copy(splits_src, splits_dst)
 
-    print(f"\nComplete: {out_dir}")
-    return out_dir
+    print(f"\nComplete: {output_dir}")
+    return output_dir
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Precompute density maps for kernel variants")
-    parser.add_argument("--kernel-ids", nargs="+", default=None,
-                        help="Specific kernel IDs to process (e.g., 1E 1G 1H). If not specified, process all.")
-    args = parser.parse_args()
-
     cfg = load_config()
-    kernels = cfg["kernels"]
-
-    # Filter kernels by ID if specified
-    if args.kernel_ids:
-        kernel_ids_set = set(args.kernel_ids)
-        kernels = [k for k in kernels if k["id"] in kernel_ids_set]
-        print(f"Processing {len(kernels)} selected kernels: {args.kernel_ids}")
-    else:
-        print(f"Processing all {len(kernels)} kernel variants")
+    density_cfg = cfg["density"]
 
     # Use experiment data directory
     exp_dir = Path(__file__).parent.parent
     output_dir = exp_dir / "data"
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Output directory: {output_dir}\n")
 
-    for kernel_cfg in kernels:
-        precompute_kernel(
-            kernel_cfg,
-            base_output_dir=output_dir,
-            mic="both",
-            stft_win=1024,
-            stft_hop=256,
-        )
-        print()  # Add blank line between kernels
+    precompute_best_kernel(
+        density_cfg,
+        output_dir=output_dir,
+        mic="both",
+        stft_win=1024,
+        stft_hop=256,
+    )
 
-    print("All kernels precomputed!")
+    print("Density map precomputation complete!")
 
 
 if __name__ == "__main__":

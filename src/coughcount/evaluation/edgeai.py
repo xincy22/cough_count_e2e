@@ -49,12 +49,30 @@ def build_eval_dataloader(
 ) -> tuple[torch.utils.data.Dataset, DataLoader]:
     data_cfg = cfg.get("data", {})
     loader_cfg = cfg.get("loader", {})
-    splits_json = Path(str(data_cfg.get("splits_json", P.edgeai_splits_json)))
+
+    # Resolve splits_json path - same logic as prepare_training_components
+    splits_json_input = data_cfg.get("splits_json", P.edgeai_splits_json)
+    splits_json = Path(str(splits_json_input))
     if not splits_json.is_absolute():
-        splits_json = (P.root / splits_json).resolve()
+        resolved_from_cwd = Path(splits_json).resolve()
+        if resolved_from_cwd.exists():
+            splits_json = resolved_from_cwd
+        else:
+            splits_json = (P.root / splits_json).resolve()
+
+    # Get npy_dir from config if specified, otherwise use default
+    npy_dir_input = data_cfg.get("npy_dir", P.edgeai_npy)
+    npy_dir = Path(str(npy_dir_input))
+    if not npy_dir.is_absolute():
+        resolved_from_cwd = Path(npy_dir).resolve()
+        if resolved_from_cwd.exists():
+            npy_dir = resolved_from_cwd
+        else:
+            npy_dir = (P.root / npy_dir).resolve()
 
     ds: torch.utils.data.Dataset = EdgeAIWindowDataset(
         split=split,
+        npy_dir=npy_dir,
         splits_json=splits_json,
         mic=str(data_cfg.get("mic", "both")),
         window_sec=float(data_cfg.get("window_sec", 8.0)),

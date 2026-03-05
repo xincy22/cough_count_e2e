@@ -1,0 +1,130 @@
+# LOSO Model Comparison Experiment
+# Compare TCN, TCN_GRU, and CRNN models using LOSO evaluation
+# Uses the best density kernel configuration from 02_density_kernel
+
+name: "loso_model_comparison"
+description: "使用最佳density核配置，对比TCN/TCN_GRU/CRNN三模型的LOSO性能"
+
+hypothesis: "不同模型架构在不同subjects上的泛化能力不同，LOSO评估可找出最稳健的模型"
+
+# Random seed
+seed: 42
+
+# Data configuration (use best kernel from 02_density_kernel)
+data:
+  # Update this after 02_density_kernel completes
+  base_npy_dir: "../../../data/processed/edgeai/npy"
+  splits_json: "../../../data/processed/edgeai/splits.json"
+  split_train: "train"
+  split_val: "val"
+  mic: "both"
+  window_sec: 8.0
+  hop_sec: 4.0
+  pos_threshold: 0.01
+
+# Best density kernel configuration (update after 02_density_kernel)
+density:
+  # TODO: Update with best kernel from 02_density_kernel
+  kernel: "skewed_gaussian"
+  sigma_sec: 0.05
+  sigma_left_sec: 0.03
+  sigma_right_sec: 0.10
+  data_dir: "skewed_l30ms_r100ms"  # Update with best kernel
+  description: "Best kernel from 02_density_kernel"
+
+# Models to compare
+models:
+  - id: "M1"
+    name: "tcn"
+    description: "Temporal Convolutional Network"
+    architecture:
+      type: "tcn"
+      channels: 256
+      layers: 8
+      kernel_size: 3
+      dilation_base: 2
+      dropout: 0.1
+
+  - id: "M2"
+    name: "tcn_gru"
+    description: "TCN + Bidirectional GRU"
+    architecture:
+      type: "tcn_gru"
+      tcn_channels: 128
+      tcn_layers: 6
+      tcn_kernel_size: 3
+      tcn_dilation_base: 2
+      gru_hidden: 128
+      gru_layers: 1
+      dropout: 0.1
+
+  - id: "M3"
+    name: "crnn"
+    description: "Conv1D + Bidirectional GRU"
+    architecture:
+      type: "crnn"
+      conv_channels: [64, 128, 256]
+      conv_kernel_sizes: [5, 5, 5]
+      gru_hidden: 128
+      gru_layers: 2
+      dropout: 0.2
+
+# Data loader configuration
+loader:
+  batch_size: 24
+  num_workers: 8
+  pos_fraction: 0.5
+  val_equal_pos_neg: true
+  val_balance_seed: 42
+  pin_memory: true
+  persistent_workers: true
+
+# Training configuration (shared across all models)
+training:
+  epochs: 500
+  lr: 1.0e-3
+  weight_decay: 0.0
+  device: "cuda"
+  best_metric: "val_count_mae"
+  val_metric_pos_weight: 1.0
+  val_metric_neg_weight: 1.0
+  lr_cycle_epochs: 100
+  lr_eta_min: 1.0e-8
+
+  # Loss weights (use best from previous experiments)
+  count_loss_weight: 0.5
+  count_loss_mode: "mae"
+  count_rel_eps: 1.0
+  under_count_weight: 0.0
+  under_count_positive_only: true
+  equal_pos_neg_influence: false
+
+  # Dynamic pos/neg loss balancer
+  dynamic_pos_neg_loss:
+    enabled: true
+    ema_beta: 0.9
+    alpha: 0.8
+    min_pos_ratio: 0.1
+    max_pos_ratio: 0.9
+    warmup_epochs: 2
+
+# LOSO configuration
+loso:
+  enabled: true
+  models: ["tcn", "tcn_gru", "crnn"]
+  num_folds: 15  # 15 subjects
+  exp_name: "loso_model_compare"
+  epochs: 500
+  device: "cuda"
+  batch_size: 24
+  num_workers: 8
+
+# Output paths
+output:
+  runs_dir: "runs"
+  results_dir: "result"
+
+# Evaluation metrics
+metrics:
+  primary: "test_count_mae_pos"
+  secondary: ["test_count_mae", "test_mean_pred_count_on_neg"]

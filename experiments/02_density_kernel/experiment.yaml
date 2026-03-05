@@ -76,11 +76,48 @@ kernels:
     description: "余弦核"
     data_dir: "cosine_half100ms"
 
+  # 新增：更极端的左窄右宽skewed核
+  - id: "1G"
+    name: "skewed_20_120"
+    kernel: "skewed_gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.02
+    sigma_right_sec: 0.12
+    description: "极左窄右宽 (20ms/120ms)"
+    data_dir: "skewed_l20ms_r120ms"
+
+  - id: "1H"
+    name: "skewed_25_150"
+    kernel: "skewed_gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.025
+    sigma_right_sec: 0.15
+    description: "极左窄右宽 (25ms/150ms)"
+    data_dir: "skewed_l25ms_r150ms"
+
+  - id: "1I"
+    name: "skewed_15_120"
+    kernel: "skewed_gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.015
+    sigma_right_sec: 0.12
+    description: "超左窄右宽 (15ms/120ms)"
+    data_dir: "skewed_l15ms_r120ms"
+
+  - id: "1J"
+    name: "skewed_20_150"
+    kernel: "skewed_gaussian"
+    sigma_sec: 0.05
+    sigma_left_sec: 0.02
+    sigma_right_sec: 0.15
+    description: "超左窄右宽 (20ms/150ms)"
+    data_dir: "skewed_l20ms_r150ms"
+
 # Data loader configuration
 loader:
   batch_size: 24
   num_workers: 8
-  pos_fraction: 0.7
+  pos_fraction: 0.5
   val_equal_pos_neg: true
   val_balance_seed: 42
   pin_memory: true
@@ -99,7 +136,7 @@ training:
   lr_eta_min: 1.0e-8
 
   # Loss weights
-  count_loss_weight: 0.2
+  count_loss_weight: 0.5  # 增加count loss权重
   count_loss_mode: "mae"
   count_rel_eps: 1.0
   under_count_weight: 0.0
@@ -120,8 +157,8 @@ model:
   name: "tcn"
   presets:
     tcn:
-      channels: 128
-      layers: 6
+      channels: 256  # 增加模型容量
+      layers: 8       # 增加层数
       kernel_size: 3
       dilation_base: 2
       dropout: 0.1
