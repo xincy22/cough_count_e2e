@@ -11,28 +11,33 @@ def list_subject_ids(manifest_csv: Path) -> list[str]:
     return sorted(df["subject_id"].astype(str).unique().tolist())
 
 
+def list_subject_ids_from_splits(splits_json: Path) -> list[str]:
+    with Path(splits_json).open("r", encoding="utf-8") as f:
+        splits = json.load(f)
+
+    subjects: set[str] = set()
+    for key in ("train", "val", "test"):
+        subjects.update(str(x) for x in splits.get(key, []))
+    if not subjects:
+        raise ValueError(f"No subjects found in splits file: {splits_json}")
+    return sorted(subjects)
+
+
 def _write_splits_json(splits: dict[str, object], out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(splits, f, indent=2)
 
 
-def make_loso_subject_splits(
-    manifest_csv: Path,
+def make_loso_subject_splits_from_subjects(
+    subjects: list[str],
     out_dir: Path,
     *,
     val_subjects: int = 1,
     seed: int = 42,
+    source: str | None = None,
 ) -> list[dict[str, object]]:
-    """
-    Build leave-one-subject-out split files.
-
-    For each subject s:
-      - test = [s]
-      - val = sampled from remaining subjects
-      - train = remaining - val
-    """
-    subjects = list_subject_ids(manifest_csv)
+    subjects = sorted(str(x) for x in subjects)
     n = len(subjects)
     if n < 3:
         raise ValueError("Need at least 3 subjects for LOSO with val split.")
@@ -86,7 +91,7 @@ def make_loso_subject_splits(
 
     index_obj: dict[str, object] = {
         "mode": "loso",
-        "manifest_csv": str(Path(manifest_csv)),
+        "source": source,
         "seed": seed,
         "val_subjects": val_subjects,
         "n_subjects": n,
@@ -95,6 +100,31 @@ def make_loso_subject_splits(
     }
     _write_splits_json(index_obj, out_dir / "index.json")
     return folds
+
+
+def make_loso_subject_splits(
+    manifest_csv: Path,
+    out_dir: Path,
+    *,
+    val_subjects: int = 1,
+    seed: int = 42,
+) -> list[dict[str, object]]:
+    """
+    Build leave-one-subject-out split files.
+
+    For each subject s:
+      - test = [s]
+      - val = sampled from remaining subjects
+      - train = remaining - val
+    """
+    subjects = list_subject_ids(manifest_csv)
+    return make_loso_subject_splits_from_subjects(
+        subjects,
+        out_dir,
+        val_subjects=val_subjects,
+        seed=seed,
+        source=str(Path(manifest_csv)),
+    )
 
 
 def make_holdout_subject_split(

@@ -16,7 +16,11 @@ import torch
 import yaml
 from tqdm import tqdm
 
-from coughcount.evaluation.edgeai import evaluate_run_on_split
+from coughcount.data.splits import (
+    list_subject_ids_from_splits,
+    make_loso_subject_splits,
+    make_loso_subject_splits_from_subjects,
+)
 from coughcount.losses import count_mae, sample_count_abs_error, train_loss_weighted
 from coughcount.paths import ProjectPaths as P
 from coughcount.training.edgeai import (
@@ -26,16 +30,20 @@ from coughcount.training.edgeai import (
     save_epoch_artifacts,
     save_run_config,
 )
-from coughcount.training.loso import get_loso_splits
 from coughcount.utils.io import atomic_write_json
-from coughcount.utils.runtime import pick_device, set_seed
+from coughcount.utils.runtime import set_seed
 
 
-def load_config() -> dict:
+def load_config(config_path: Path | str | None = None) -> dict:
     """从experiment.yaml加载配置"""
     exp_dir = Path(__file__).parent.parent
-    config_path = exp_dir / "experiment.yaml"
-    with config_path.open("r", encoding="utf-8") as f:
+    if config_path is None:
+        resolved_config_path = exp_dir / "experiment.yaml"
+    else:
+        resolved_config_path = Path(config_path)
+        if not resolved_config_path.is_absolute():
+            resolved_config_path = exp_dir / resolved_config_path
+    with resolved_config_path.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     return cfg
 
@@ -101,10 +109,23 @@ def train_loso_fold(
         }
     }
 
-    # Set custom splits
-    fold_cfg["data"]["custom_train_subjects"] = train_split
-    fold_cfg["data"]["custom_val_subjects"] = val_split
-    fold_cfg["data"]["custom_test_subjects"] = [test_subject]
+    fold_splits = {
+        "train": list(train_split),
+        "val": list(val_split),
+        "test": [str(test_subject)],
+        "meta": {
+            "mode": "loso",
+            "fold_index": int(fold_idx),
+            "test_subject": str(test_subject),
+        },
+    }
+    fold_splits_path = fold_dir / "splits.json"
+    atomic_write_json(fold_splits_path, fold_splits)
+
+    fold_cfg["data"]["splits_json"] = str(fold_splits_path.resolve())
+    fold_cfg["data"]["split_train"] = "train"
+    fold_cfg["data"]["split_val"] = "val"
+    fold_cfg["data"]["split_test"] = "test"
 
     save_run_config(fold_dir, fold_cfg)
 
@@ -213,7 +234,12 @@ def train_loso_fold(
     # Save history
     atomic_write_json(fold_dir / "history.json", history)
 
-    # Evaluate on test set (left-out subject)
+    best_path = fold_dir / "best.pt"
+    if best_path.exists():
+        ckpt = torch.load(best_path, map_location=device)
+        components.model.load_state_dict(ckpt["model_state"])
+
+    # Evaluate best checkpoint on test set (left-out subject)
     test_stats = evaluate_counting_metrics(
         components.model,
         components.test_loader,
@@ -258,13 +284,38 @@ def run_loso_for_model(
     print(f"Running LOSO for: {model_cfg['name']}")
     print(f"{'='*60}")
 
-    # Get LOSO splits
-    splits_path = Path(cfg["data"]["splits_json"])
-    loso_splits = get_loso_splits(splits_path)
+    loso_split_dir = loso_output_dir.parent / "_loso_splits"
+    val_subjects = int(cfg.get("loso", {}).get("val_subjects", 1))
+    seed = int(cfg.get("seed", 42))
+    manifest_csv = Path(str(cfg.get("data", {}).get("manifest_csv", P.edgeai_manifest_csv)))
+    if manifest_csv.exists():
+        loso_splits = make_loso_subject_splits(
+            manifest_csv,
+            loso_split_dir,
+            val_subjects=val_subjects,
+            seed=seed,
+        )
+    else:
+        splits_json = Path(str(cfg["data"]["splits_json"]))
+        subjects = list_subject_ids_from_splits(splits_json)
+        loso_splits = make_loso_subject_splits_from_subjects(
+            subjects,
+            loso_split_dir,
+            val_subjects=val_subjects,
+            seed=seed,
+            source=str(splits_json),
+        )
+    max_folds = cfg.get("loso", {}).get("max_folds")
+    if max_folds is not None:
+        loso_splits = loso_splits[: int(max_folds)]
 
     all_results = []
 
-    for fold_idx, (train_subjs, val_subjs, test_subj) in enumerate(loso_splits):
+    for fold in loso_splits:
+        fold_idx = int(fold["fold_index"])
+        train_subjs = [str(x) for x in fold["train_subjects"]]
+        val_subjs = [str(x) for x in fold["val_subjects"]]
+        test_subj = str(fold["test_subject"])
         print(f"\nFold {fold_idx + 1}/{len(loso_splits)}: Test subject {test_subj}")
 
         result = train_loso_fold(
@@ -312,14 +363,18 @@ def run_loso_for_model(
 def main() -> None:
     import argparse
 
-    cfg = load_config()
-
     parser = argparse.ArgumentParser(description="Run LOSO evaluation for model comparison.")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Config file path. Relative paths are resolved from the experiment directory.",
+    )
     parser.add_argument(
         "--model-id",
         type=str,
         default=None,
-        help="Run LOSO only for a specific model (e.g., 'M1', 'M2', 'M3')",
+        help="Run LOSO only for a specific model id (e.g., 'M0', 'M1', 'M2')",
     )
     parser.add_argument(
         "--device",
@@ -327,7 +382,13 @@ def main() -> None:
         default=None,
         help="Device override",
     )
+    parser.add_argument("--epochs", type=int, default=None, help="Override training epochs.")
+    parser.add_argument("--max-folds", type=int, default=None, help="Run only the first N folds.")
+    parser.add_argument("--batch-size", type=int, default=None, help="Override batch size.")
+    parser.add_argument("--num-workers", type=int, default=None, help="Override dataloader workers.")
     args = parser.parse_args()
+
+    cfg = load_config(args.config)
 
     # Get paths
     exp_dir = Path(__file__).parent.parent
@@ -344,6 +405,17 @@ def main() -> None:
 
     if args.device is not None:
         cfg["training"]["device"] = str(args.device)
+    if args.epochs is not None:
+        cfg["training"]["epochs"] = int(args.epochs)
+        cfg.setdefault("loso", {})["epochs"] = int(args.epochs)
+    if args.max_folds is not None:
+        cfg.setdefault("loso", {})["max_folds"] = int(args.max_folds)
+    if args.batch_size is not None:
+        cfg.setdefault("loader", {})["batch_size"] = int(args.batch_size)
+        cfg.setdefault("loso", {})["batch_size"] = int(args.batch_size)
+    if args.num_workers is not None:
+        cfg.setdefault("loader", {})["num_workers"] = int(args.num_workers)
+        cfg.setdefault("loso", {})["num_workers"] = int(args.num_workers)
 
     device = cfg["training"]["device"]
 
@@ -360,6 +432,17 @@ def main() -> None:
         if not models:
             print(f"Error: model_id '{args.model_id}' not found")
             return
+    else:
+        enabled_models = set(str(x) for x in loso_cfg.get("models", []))
+        if enabled_models:
+            models = [
+                m
+                for m in models
+                if str(m.get("name")) in enabled_models or str(m.get("id")) in enabled_models
+            ]
+            if not models:
+                print(f"Error: no models matched loso.models={sorted(enabled_models)}")
+                return
 
     all_summaries = []
 

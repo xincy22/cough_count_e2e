@@ -24,8 +24,10 @@ from coughcount.utils.io import atomic_write_json
 class TrainingComponents:
     train_dataset: EdgeAIWindowDataset
     val_dataset: Dataset
+    test_dataset: Dataset
     train_loader: DataLoader
     val_loader: DataLoader
+    test_loader: DataLoader
     model: torch.nn.Module
     optimizer: torch.optim.Optimizer
     scheduler: CosineAnnealingWarmRestarts
@@ -142,7 +144,7 @@ class DynamicPosNegLossBalancer:
 
 
 def build_dynamic_pos_neg_loss_balancer(cfg: dict[str, Any]) -> DynamicPosNegLossBalancer:
-    train_cfg = cfg.get("train", {})
+    train_cfg = cfg.get("train", cfg.get("training", {}))
     data_cfg = cfg.get("data", {})
     dyn_cfg = train_cfg.get("dynamic_pos_neg_loss", {})
     if not isinstance(dyn_cfg, dict):
@@ -191,8 +193,9 @@ def _build_equal_pos_neg_val_dataset(
 def prepare_training_components(
     cfg: dict[str, Any],
     *,
-    device: torch.device,
+    device: torch.device | str,
 ) -> TrainingComponents:
+    device = torch.device(device)
     data_cfg = cfg.get("data", {})
     loader_cfg = cfg.get("loader", {})
     train_cfg = cfg.get("train", cfg.get("training", {}))
@@ -235,6 +238,16 @@ def prepare_training_components(
     )
     ds_val = EdgeAIWindowDataset(
         split=str(data_cfg.get("split_val", "val")),
+        npy_dir=npy_dir,
+        splits_json=splits_json,
+        mic=str(data_cfg.get("mic", "both")),
+        window_sec=float(data_cfg.get("window_sec", 8.0)),
+        hop_sec=float(data_cfg.get("hop_sec", 4.0)),
+        pos_threshold=float(data_cfg.get("pos_threshold", 0.01)),
+        return_meta=False,
+    )
+    ds_test = EdgeAIWindowDataset(
+        split=str(data_cfg.get("split_test", "test")),
         npy_dir=npy_dir,
         splits_json=splits_json,
         mic=str(data_cfg.get("mic", "both")),
@@ -288,6 +301,15 @@ def prepare_training_components(
         pin_memory=(device.type == "cuda"),
         persistent_workers=(num_workers > 0),
     )
+    dl_test = DataLoader(
+        ds_test,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        collate_fn=pad_collate,
+        pin_memory=(device.type == "cuda"),
+        persistent_workers=(num_workers > 0),
+    )
 
     in_channels = int(ds_train[0]["x"].shape[0])
     model = build_model(cfg, in_channels=in_channels)
@@ -312,8 +334,10 @@ def prepare_training_components(
     return TrainingComponents(
         train_dataset=ds_train,
         val_dataset=ds_val_eval,
+        test_dataset=ds_test,
         train_loader=dl_train,
         val_loader=dl_val,
+        test_loader=dl_test,
         model=model,
         optimizer=optimizer,
         scheduler=scheduler,
@@ -350,6 +374,7 @@ def evaluate_counting_metrics(
     pos_threshold: float,
     desc: str = "val",
     per_sample: bool = False,
+    disable: bool = False,
 ) -> dict[str, float]:
     model.eval()
 
@@ -370,7 +395,7 @@ def evaluate_counting_metrics(
     pred_neg_sum = 0.0
     gt_pos_sum = 0.0
 
-    pbar = tqdm(dl, desc=desc, leave=False, dynamic_ncols=True)
+    pbar = tqdm(dl, desc=desc, leave=False, dynamic_ncols=True, disable=disable)
     for batch in pbar:
         x = batch["x"].to(device)
         y = batch["y"].to(device)

@@ -17,6 +17,21 @@
 
 ## 快速开始
 
+当前本地可跑主线建议优先使用：
+
+```text
+experiments/03_loso_model_comparison
+```
+
+第5章正式重跑入口已整理在：
+
+```text
+experiments/03_loso_model_comparison/scripts/06_ch5_rerun_queue.py
+experiments/03_loso_model_comparison/RERUN_0P7M_REMOTE_GUIDE.md
+```
+
+当前正式队列包含 `8` 个 0.7M 级模型结构横向对比和 `4` 个 0.7M 级 TCN/BiGRU 消融任务。四张 4090 单机运行时，启动 4 个 shard，每张卡串行跑 3 个 LOSO 任务。
+
 ### 1. 数据预处理 (首次运行)
 
 进入 `experiments/00_data_prep/` 目录，按顺序运行脚本：
@@ -83,6 +98,28 @@ uv sync
 python -m pip install -e .
 ```
 
+### 3090 运行建议
+
+先确认 CUDA 可用：
+
+```powershell
+.venv\Scripts\python.exe -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no cuda')"
+```
+
+最小烟测：
+
+```powershell
+cd experiments\03_loso_model_comparison
+..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id M2 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
+```
+
+优先复跑第5章 0.7M 结构对比与消融：
+
+```powershell
+..\..\.venv\Scripts\python.exe scripts\06_ch5_rerun_queue.py audit
+..\..\.venv\Scripts\python.exe scripts\06_ch5_rerun_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 --dry-run
+```
+
 ## 配置说明
 
 ### Density核函数参数
@@ -98,7 +135,7 @@ python -m pip install -e .
 
 在对应的 `configs/*.yaml` 中调整：
 
-- `model.name`: cnn1d | tcn | crnn | tcn_gru
+- `model.name`: gru | tcn | tcn_gru | cnn1d | crnn
 - `train.count_loss_weight`: count loss权重 (默认 0.2)
 - `train.under_count_weight`: 假阳性惩罚权重 (默认 0.0)
 - `data.pos_threshold`: 正样本阈值 (默认 0.01)
