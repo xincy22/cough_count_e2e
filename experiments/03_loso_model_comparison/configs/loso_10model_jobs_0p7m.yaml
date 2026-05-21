@@ -1,8 +1,8 @@
-# Chapter 5 10-model LOSO comparison queue.
+# 10-model LOSO comparison queue.
 # Intended deployment: 1 machine x 4 RTX4090 = 4 shard workers.
 
-name: "ch5_10model_compare_0p7m"
-description: "Self-contained rerun queue for the Chapter 5 10-model comparison."
+name: "loso_10model_compare_0p7m"
+description: "Self-contained run queue for the 10-model LOSO cough-counting comparison."
 default_num_shards: 4
 default_batch_size: 24
 default_num_workers: 4

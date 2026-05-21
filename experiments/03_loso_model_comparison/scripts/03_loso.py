@@ -2,7 +2,7 @@
 Run Leave-One-Subject-Out evaluation for the configured counting models.
 
 By default this script reads experiment.yaml and runs the enabled 10-model
-Chapter 5 comparison. Use --model-id for a single model smoke test or rerun.
+LOSO comparison. Use --model-id for a single model smoke test or rerun.
 """
 from __future__ import annotations
 

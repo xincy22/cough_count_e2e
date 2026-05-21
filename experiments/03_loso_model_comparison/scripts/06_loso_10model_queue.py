@@ -1,5 +1,5 @@
 """
-Single mainline runner for the Chapter 5 0.7M 10-model LOSO comparison.
+Single mainline runner for the 0.7M 10-model LOSO comparison.
 
 The workflow is deliberately explicit:
 
@@ -24,7 +24,7 @@ import yaml
 
 
 EXP_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_PLAN = EXP_DIR / "configs" / "ch5_rerun_jobs_0p7m.yaml"
+DEFAULT_PLAN = EXP_DIR / "configs" / "loso_10model_jobs_0p7m.yaml"
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -101,7 +101,7 @@ def validate_plan(plan: dict[str, Any]) -> None:
         if actual != expected:
             raise ValueError(
                 f"{job_id} expected_params={expected} but actual={actual}; "
-                f"fix configs/ch5_rerun_jobs_0p7m.yaml or {config_path.name}"
+                f"fix configs/loso_10model_jobs_0p7m.yaml or {config_path.name}"
             )
 
 
@@ -177,7 +177,7 @@ def run_jobs(
 
     bs = int(batch_size or plan.get("default_batch_size", 24))
     nw = int(num_workers if num_workers is not None else plan.get("default_num_workers", 4))
-    log_dir = EXP_DIR / "runs" / "ch5_10model_compare_0p7m_logs"
+    log_dir = EXP_DIR / "runs" / "loso_10model_compare_0p7m_logs"
 
     for job in jobs:
         command = [
@@ -270,7 +270,7 @@ def write_csv(path: Path, fields: list[str], rows: list[dict[str, Any]]) -> None
 def report(plan: dict[str, Any]) -> Path:
     validate_plan(plan)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_dir = EXP_DIR / "result" / f"ch5_10model_compare_0p7m_{timestamp}"
+    out_dir = EXP_DIR / "result" / f"loso_10model_compare_0p7m_{timestamp}"
     out_dir.mkdir(parents=True, exist_ok=True)
     tables_dir = out_dir / "tables"
     repro_dir = out_dir / "reproducibility"
@@ -387,12 +387,12 @@ def report(plan: dict[str, Any]) -> Path:
         json.dumps(env, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    shutil.copyfile(DEFAULT_PLAN, repro_dir / "ch5_rerun_jobs_0p7m.yaml")
+    shutil.copyfile(DEFAULT_PLAN, repro_dir / "loso_10model_jobs_0p7m.yaml")
     for config_path in sorted({EXP_DIR / str(job["config"]) for job in plan["jobs"]}):
         shutil.copyfile(config_path, repro_dir / config_path.name)
 
     lines = [
-        "# Chapter 5 10-Model LOSO Comparison Report",
+        "# 10-Model LOSO Cough Counting Report",
         "",
         f"Generated: {datetime.now().isoformat(timespec='seconds')}",
         "",
@@ -456,7 +456,7 @@ def report(plan: dict[str, Any]) -> Path:
             "- `tables/fold_results.csv`: all fold-level test metrics.",
             "- `tables/missing_jobs.csv`: incomplete jobs, if any.",
             "- `reproducibility/environment.json`: runtime and CUDA/PyTorch environment.",
-            "- `reproducibility/ch5_rerun_jobs_0p7m.yaml`: exact job queue.",
+            "- `reproducibility/loso_10model_jobs_0p7m.yaml`: exact job queue.",
             "- `reproducibility/structure_compare_v2_0p7m.yaml`: exact model/data/training configuration.",
         ]
     )

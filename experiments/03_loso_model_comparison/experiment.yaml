@@ -1,7 +1,7 @@
-# Chapter 5 LOSO 10-model comparison.
+# LOSO 10-model comparison.
 # This file is the default config for scripts/03_loso.py.
 
-name: "loso_ch5_10model_compare_0p7m"
+name: "loso_10model_compare_0p7m"
 description: "10 model-family comparison with all models near the 0.7M parameter budget"
 hypothesis: "Under the same LOSO/data/training protocol and similar parameter budget, explicit temporal modeling should outperform purely convolutional counting baselines."
 
@@ -177,7 +177,7 @@ loso:
   enabled: true
   models: ["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]
   num_folds: 15
-  exp_name: "loso_ch5_10model_compare_0p7m"
+  exp_name: "loso_10model_compare_0p7m"
   epochs: 500
   device: "cuda"
   batch_size: 24

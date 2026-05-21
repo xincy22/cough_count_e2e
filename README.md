@@ -17,17 +17,17 @@
 
 ## 快速开始
 
-当前本地可跑主线建议优先使用：
+当前主要实验入口：
 
 ```text
 experiments/03_loso_model_comparison
 ```
 
-第5章正式重跑入口已整理在：
+10 模型 LOSO 横评入口：
 
 ```text
-experiments/03_loso_model_comparison/scripts/06_ch5_rerun_queue.py
-experiments/03_loso_model_comparison/RERUN_0P7M_REMOTE_GUIDE.md
+experiments/03_loso_model_comparison/scripts/06_loso_10model_queue.py
+experiments/03_loso_model_comparison/REMOTE_RUN_GUIDE.md
 ```
 
 当前正式队列包含 `10` 个 0.7M 级完整模型结构横向对比任务，不再单独设置消融实验。四张 4090 单机运行时，启动 4 个 shard，其中两张卡串行跑 3 个 LOSO 任务，另外两张卡串行跑 2 个 LOSO 任务。
@@ -87,6 +87,7 @@ python scripts/01_train.py --config ../../configs/edgeai_best_tcn_gru.yaml
 | `00_data_prep` | EdgeAI数据预处理 |
 | `01_baseline_tcn` | 基线TCN模型实验 |
 | `02_density_opt` | Density核函数和损失函数优化 |
+| `03_loso_model_comparison` | 0.7M 级 10 模型 LOSO 横评 |
 
 ## 环境与安装
 
@@ -113,11 +114,11 @@ cd experiments\03_loso_model_comparison
 ..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id S9 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
 ```
 
-优先复跑第5章 0.7M 结构横评：
+复跑 0.7M 级 10 模型 LOSO 横评：
 
 ```powershell
-..\..\.venv\Scripts\python.exe scripts\06_ch5_rerun_queue.py audit
-..\..\.venv\Scripts\python.exe scripts\06_ch5_rerun_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 --dry-run
+..\..\.venv\Scripts\python.exe scripts\06_loso_10model_queue.py audit
+..\..\.venv\Scripts\python.exe scripts\06_loso_10model_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 --dry-run
 ```
 
 ## 配置说明
@@ -135,7 +136,7 @@ cd experiments\03_loso_model_comparison
 
 在对应的 `configs/*.yaml` 中调整：
 
-- `model.name`: cnn1d | dscnn | rescnn | crnn | bicrnn | gru | tcn | tcn_attn | tcn_gru
+- `model.name`: cnn1d | dscnn | rescnn | crnn | bicrnn | bigru | tcn | tcn_attn | tcn_unigru | tcn_bigru
 - `train.count_loss_weight`: count loss权重 (默认 0.2)
 - `train.under_count_weight`: 假阳性惩罚权重 (默认 0.0)
 - `data.pos_threshold`: 正样本阈值 (默认 0.01)

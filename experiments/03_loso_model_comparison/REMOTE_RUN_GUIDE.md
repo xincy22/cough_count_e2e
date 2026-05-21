@@ -1,6 +1,6 @@
-# Chapter 5 0.7M 10-Model Remote Guide
+# 0.7M 10-Model Remote Run Guide
 
-This is the remote-running guide for the final Chapter 5 experiment. The workflow is a single 10-model LOSO comparison, not a separate ablation experiment.
+This is the remote-running guide for the 10-model LOSO cough-counting comparison.
 
 ## Remote Setup
 
@@ -39,7 +39,7 @@ cd experiments/03_loso_model_comparison
 
 ## What Runs
 
-The final queue contains 10 LOSO jobs:
+The queue contains 10 LOSO jobs:
 
 ```text
 S0 CNN1D
@@ -60,17 +60,17 @@ All models use the same LOSO protocol and are kept near a 0.7M trainable-paramet
 
 ```bash
 cd experiments/03_loso_model_comparison
-bash scripts/07_start_ch5_rerun_4gpu.sh
+bash scripts/07_start_loso_10model_4gpu.sh
 ```
 
 Equivalent manual commands:
 
 ```bash
 cd experiments/03_loso_model_comparison
-nohup ../../.venv/bin/python scripts/06_ch5_rerun_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 > shard0.out 2>&1 &
-nohup ../../.venv/bin/python scripts/06_ch5_rerun_queue.py run --shard-index 1 --num-shards 4 --device cuda:1 > shard1.out 2>&1 &
-nohup ../../.venv/bin/python scripts/06_ch5_rerun_queue.py run --shard-index 2 --num-shards 4 --device cuda:2 > shard2.out 2>&1 &
-nohup ../../.venv/bin/python scripts/06_ch5_rerun_queue.py run --shard-index 3 --num-shards 4 --device cuda:3 > shard3.out 2>&1 &
+nohup ../../.venv/bin/python scripts/06_loso_10model_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 > shard0.out 2>&1 &
+nohup ../../.venv/bin/python scripts/06_loso_10model_queue.py run --shard-index 1 --num-shards 4 --device cuda:1 > shard1.out 2>&1 &
+nohup ../../.venv/bin/python scripts/06_loso_10model_queue.py run --shard-index 2 --num-shards 4 --device cuda:2 > shard2.out 2>&1 &
+nohup ../../.venv/bin/python scripts/06_loso_10model_queue.py run --shard-index 3 --num-shards 4 --device cuda:3 > shard3.out 2>&1 &
 ```
 
 With 10 jobs and 4 GPUs, shards 0 and 1 run 3 jobs each, and shards 2 and 3 run 2 jobs each.
@@ -80,36 +80,36 @@ With 10 jobs and 4 GPUs, shards 0 and 1 run 3 jobs each, and shards 2 and 3 run 
 Audit exact parameters and model IDs:
 
 ```bash
-../../.venv/bin/python scripts/06_ch5_rerun_queue.py audit
+../../.venv/bin/python scripts/06_loso_10model_queue.py audit
 ```
 
 Dry-run one shard:
 
 ```bash
-../../.venv/bin/python scripts/06_ch5_rerun_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 --dry-run
+../../.venv/bin/python scripts/06_loso_10model_queue.py run --shard-index 0 --num-shards 4 --device cuda:0 --dry-run
 ```
 
 ## During Running
 
 ```bash
 nvidia-smi
-ps -ef | grep 06_ch5_rerun_queue.py | grep -v grep
+ps -ef | grep 06_loso_10model_queue.py | grep -v grep
 tail -f shard0.out
-tail -f runs/ch5_10model_compare_0p7m_logs/J00_cnn1d_0p7m.log
+tail -f runs/loso_10model_compare_0p7m_logs/J00_cnn1d_0p7m.log
 ```
 
 ## After All Shards Finish
 
-Generate the release-ready report:
+Generate the report package:
 
 ```bash
-../../.venv/bin/python scripts/06_ch5_rerun_queue.py report
+../../.venv/bin/python scripts/06_loso_10model_queue.py report
 ```
 
 Output:
 
 ```text
-result/ch5_10model_compare_0p7m_<timestamp>/
+result/loso_10model_compare_0p7m_<timestamp>/
 ```
 
 Important files:
@@ -120,6 +120,6 @@ tables/model_summary.csv
 tables/fold_results.csv
 tables/missing_jobs.csv
 reproducibility/environment.json
-reproducibility/ch5_rerun_jobs_0p7m.yaml
+reproducibility/loso_10model_jobs_0p7m.yaml
 reproducibility/structure_compare_v2_0p7m.yaml
 ```
