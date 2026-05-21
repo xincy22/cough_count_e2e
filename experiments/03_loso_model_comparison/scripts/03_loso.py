@@ -1,6 +1,8 @@
 """
-LOSO评估脚本 - 对三个模型进行Leave-One-Subject-Out交叉验证
-从experiment.yaml读取配置，为每个模型运行LOSO评估
+Run Leave-One-Subject-Out evaluation for the configured counting models.
+
+By default this script reads experiment.yaml and runs the enabled 10-model
+Chapter 5 comparison. Use --model-id for a single model smoke test or rerun.
 """
 from __future__ import annotations
 
@@ -374,7 +376,7 @@ def main() -> None:
         "--model-id",
         type=str,
         default=None,
-        help="Run LOSO only for a specific model id (e.g., 'M0', 'M1', 'M2')",
+        help="Run LOSO only for a specific model id (e.g., 'S0' ... 'S9')",
     )
     parser.add_argument(
         "--device",

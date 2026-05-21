@@ -279,7 +279,7 @@ def main() -> None:
         "--model-id",
         type=str,
         default=None,
-        help="Train only a specific model (e.g., 'M1', 'M2', 'M3')",
+        help="Train only a specific model (e.g., 'S0' ... 'S9')",
     )
     parser.add_argument(
         "--epochs",

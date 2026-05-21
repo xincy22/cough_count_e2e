@@ -1,175 +1,125 @@
-# Experiment 03: LOSO Model Comparison
+# Experiment 03: Chapter 5 LOSO 10-Model Comparison
 
-使用最佳 density 核配置，对比第5章所需的 0.7M 级咳嗽计数结构，并围绕 `TCN` / `UniGRU` / `BiGRU` 做结构消融。
+本实验用于论文第五章“咳嗽事件计数模型”部分。当前项目主线已经收敛为 **统一参数规模下的 10 个模型结构横评**，不再单独写 TCN/GRU 消融实验。
 
-## 目的
+## 实验目标
 
-通过 Leave-One-Subject-Out (LOSO) 交叉验证完成两组证据：
-
-1. `CNN1D / DSCNN / ResCNN / CRNN / BiCRNN / TCN / TCN-Attn / TCN+BiGRU` 的 0.7M 级结构横向对比。
-2. `BiGRU-only / TCN-only / TCN+UniGRU / TCN+BiGRU` 的 0.7M 级消融实验。
-
-## 实验流程
-
-```
-01_precompute.py → 06_ch5_rerun_queue.py → report
-```
-
-四张 4090 远端运行说明见：
+在相同数据、相同 LOSO 划分、相同训练协议和约 0.7M 参数规模下，对比 10 类咳嗽计数模型：
 
 ```text
-RERUN_0P7M_REMOTE_GUIDE.md
+CNN1D / DSCNN / ResCNN / CRNN / BiCRNN / BiGRU / TCN / TCN-Attn / TCN+UniGRU / TCN+BiGRU
 ```
 
-### Step 1: 预计算密度图 (01_precompute.py)
+该实验回答的问题是：
 
-使用从02实验确定的最佳density核配置生成密度图。
+> 在主体独立的 LOSO 验证下，哪类模型结构更适合端到端咳嗽事件计数？
 
-```bash
-python scripts/01_precompute.py
-```
+## 关键文件
 
-**输入**: 原始wav文件 + 咳嗽标签
-**输出**: `data/` 目录 (S.npy, t.npy, density.npy)
+| 文件 | 作用 |
+|---|---|
+| `experiment.yaml` | 默认 10 模型 LOSO 配置 |
+| `configs/structure_compare_v2_0p7m.yaml` | 正式远端队列使用的同一份 10 模型配置 |
+| `configs/ch5_rerun_jobs_0p7m.yaml` | 4 GPU 队列计划，10 个 job |
+| `scripts/03_loso.py` | 单模型或多模型 LOSO 训练与测试 |
+| `scripts/06_ch5_rerun_queue.py` | 审计、分片运行、汇总 release 报告的主入口 |
+| `scripts/07_start_ch5_rerun_4gpu.sh` | 4 张 GPU 一键启动脚本 |
+| `scripts/08_report_ch5_rerun.sh` | 训练完成后的报告生成脚本 |
 
-### Step 2: 训练单模型 (02_train.py)
+## 共同实验设置
 
-可选：训练单个模型用于快速验证。
-
-```bash
-# 训练所有模型
-python scripts/02_train.py
-
-# 只训练特定模型
-python scripts/02_train.py --model-id M1
-```
-
-**输入**: `data/`
-**输出**: `runs/{M1,M2,M3}/` (best.pt, history.json, etc.)
-
-### Step 3: 第5章重跑队列 (06_ch5_rerun_queue.py)
-
-正式重跑使用队列脚本统一调度 `03_loso.py`：
-
-```bash
-# 审计配置、模型ID和参数量
-python scripts/06_ch5_rerun_queue.py audit
-
-# 四张卡分别启动四个 shard
-python scripts/06_ch5_rerun_queue.py run --shard-index 0 --num-shards 4 --device cuda:0
-python scripts/06_ch5_rerun_queue.py run --shard-index 1 --num-shards 4 --device cuda:1
-python scripts/06_ch5_rerun_queue.py run --shard-index 2 --num-shards 4 --device cuda:2
-python scripts/06_ch5_rerun_queue.py run --shard-index 3 --num-shards 4 --device cuda:3
-
-# 全部结束后汇总
-python scripts/06_ch5_rerun_queue.py report
-```
-
-**输入**: `data/`
-**输出**: `runs/structure_compare_v2_0p7m_<timestamp>/`、`runs/ablation_tcn_bigru_v2_0p7m_<timestamp>/` 和 `result/ch5_rerun_0p7m_<timestamp>/`
-
-### 兼容入口：单模型 LOSO (03_loso.py)
-
-对启用的模型运行 15-fold LOSO 交叉验证。默认启用列表来自 `experiment.yaml` 的 `loso.models`，当前为 `gru`、`tcn`、`tcn_gru`。
-
-```bash
-# 对默认三组消融模型运行LOSO，默认读 experiment.yaml 中的 500 epochs
-python scripts/03_loso.py --device cuda
-
-# 只对特定模型运行LOSO
-python scripts/03_loso.py --model-id M2 --device cuda
-
-# 快速烟测：只跑 tcn_gru 的 1 个 fold、1 个 epoch
-python scripts/03_loso.py --model-id M2 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
-```
-
-**输入**: `data/`
-**输出**: `runs/loso_model_compare_<timestamp>/{M0,M1,M2}/`
-
-每个模型生成：
-- `fold_XX_test_<subject>/` - 每个fold的训练结果
-- `fold_XX_test_<subject>/best.pt` - 按 `val_count_mae` 保存的最佳权重
-- `fold_XX_test_<subject>/test_results.json` - 使用 `best.pt` 在 left-out subject 上测试的结果
-- `loso_summary.json` - 该模型的LOSO汇总统计
-
-### Step 4: 整理论文结果 (05_thesis_ablation_report.py)
-
-生成消融实验汇总表、fold 明细和可放入论文的 Markdown 草稿。
-
-```bash
-python scripts/05_thesis_ablation_report.py
-```
-
-**输入**: `runs/loso_model_compare_<timestamp>/`
-**输出**: `result/thesis_ablation_<timestamp>/`
+| 项目 | 设置 |
+|---|---|
+| 数据集 | EdgeAI cough-counting dataset |
+| 验证方式 | 15-fold LOSO，每折留出 1 名受试者测试 |
+| 输入特征 | STFT log-magnitude，形状 `[B, F, T]` |
+| STFT | `win=1024`, `hop=256`, 单麦克风频率维 `F=513` |
+| 麦克风 | `mic=both`，表示 out/body 两类麦克风样本均参与训练，不是通道拼接 |
+| 窗口 | `window_sec=8.0`, `hop_sec=4.0` |
+| 密度标签 | `skewed_gaussian`, `sigma_left_sec=0.03`, `sigma_right_sec=0.10` |
+| 训练轮数 | `500` |
+| batch size | `24` |
+| dataloader workers | `4` |
+| 优化器 | Adam，`lr=1e-3`, `weight_decay=0` |
+| 学习率调度 | cosine cycle，`lr_cycle_epochs=100`, `lr_eta_min=1e-8` |
+| checkpoint 选择 | 每折按 `val_count_mae` 选择 best checkpoint |
+| 主指标 | `test_count_mae` |
+| 次指标 | `test_count_mae_pos`, `test_count_mae_neg` |
 
 ## 模型配置
 
-| Model ID | Name | Architecture | Parameters |
-|----------|------|--------------|------------|
-| M0 | gru | GRU-only temporal baseline |
-| M1 | tcn | TCN |
-| M2 | tcn_gru | TCN + GRU |
+| ID | 模型 | 参数量 | 结构摘要 |
+|---|---|---:|---|
+| S0 | CNN1D | 726,641 | 5 层 Conv1d，channels `[48,96,160,224,288]` |
+| S1 | DSCNN | 699,974 | 5 个 depthwise-separable residual CNN block |
+| S2 | ResCNN | 699,905 | 3 个普通 residual CNN block，channels `[64,192,256]` |
+| S3 | CRNN | 700,001 | CNN `[96,128,128,144,176]` + 单向 GRU hidden 256 |
+| S4 | BiCRNN | 700,001 | CNN `[64,144,176,224,224]` + 双向 GRU hidden 112/方向 |
+| S5 | BiGRU | 703,969 | `1x1 Conv` projection 288 + 双向 GRU hidden 192/方向 |
+| S6 | TCN | 699,521 | 4 层 residual dilated TCN，channels 160，dilation `1,2,4,8` |
+| S7 | TCN-Attn | 692,609 | 5 层 TCN + 1 层单头 self-attention |
+| S8 | TCN+UniGRU | 699,297 | 4 层 TCN channels 128 + 单向 GRU hidden 224 |
+| S9 | TCN+BiGRU | 698,209 | 4 层 TCN channels 128 + 双向 GRU hidden 144/方向 |
 
-当前 `experiment.yaml` 只保留论文消融所需的三组模型，避免误跑旧的 8 模型横评。
+## 从零复现
 
-## 评估指标
+在仓库根目录创建并使用项目虚拟环境：
 
-- **Primary**: `test_count_mae` - 整体计数MAE
-- **Secondary**: `test_count_mae_pos`, `test_count_mae_neg` - 正样本和负样本计数MAE
-
-## 预期结果
-
-形成论文第 5 章使用的消融证据：`TCN+GRU` 相比 `TCN` 和 `GRU` 的计数误差变化。
-
-当前严格消融参数量：
-
-| Model ID | Name | Trainable Params | FP32 Size |
-|----------|------|-----------------:|----------:|
-| M0 | gru | 115,841 | 0.442 MB |
-| M1 | tcn | 609,665 | 2.326 MB |
-| M2 | tcn_gru | 708,737 | 2.704 MB |
-
-`M1` 是与 `M2` 中 TCN 前端匹配的 TCN-only 对照，不是旧配置中的大容量 TCN。TCN+GRU 参数量不等于独立 TCN 与独立 GRU 简单相加，因为各模型的输入投影和输出头不同。
-
-## 从零跑通的最短命令
-
-在仓库根目录执行：
-
-```powershell
-uv sync
-.venv\Scripts\python.exe experiments\00_data_prep\scripts\01_download.py
-.venv\Scripts\python.exe experiments\00_data_prep\scripts\02_build_manifest.py
-.venv\Scripts\python.exe experiments\00_data_prep\scripts\03_split_subjects.py
+```bash
+uv sync --locked
 ```
 
-然后进入本实验目录：
+准备数据：
 
-```powershell
-cd experiments\03_loso_model_comparison
-..\..\.venv\Scripts\python.exe scripts\01_precompute.py
-..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id M2 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
+```bash
+python experiments/00_data_prep/scripts/01_download.py
+python experiments/00_data_prep/scripts/02_build_manifest.py
+python experiments/00_data_prep/scripts/03_split_subjects.py
+cd experiments/03_loso_model_comparison
+../../.venv/bin/python scripts/01_precompute.py
 ```
 
-确认 smoke test 成功后，再跑论文实验：
+快速 smoke test：
 
-```powershell
-..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id M2 --device cuda
-..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id M1 --device cuda
-..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id M0 --device cuda
-..\..\.venv\Scripts\python.exe scripts\05_thesis_ablation_report.py
+```bash
+../../.venv/bin/python scripts/06_ch5_rerun_queue.py audit
+../../.venv/bin/python scripts/03_loso.py --model-id S9 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
 ```
 
-若时间充足，再另开实验比较旧的 `CRNN/BiCRNN/TCN-Attn/DSCNN/ResCNN/CNN1D`，但它们不是当前论文主线必需结果。
+4 张 GPU 正式运行：
 
-## 配置说明
-
-在运行此实验前，需要更新`experiment.yaml`中的`density`配置，使用02实验中最佳的核函数配置：
-
-```yaml
-density:
-  kernel: "skewed_gaussian"
-  sigma_left_sec: 0.03  # 更新为最佳值
-  sigma_right_sec: 0.10  # 更新为最佳值
-  data_dir: "skewed_l30ms_r100ms"  # 更新为最佳目录
+```bash
+cd experiments/03_loso_model_comparison
+bash scripts/07_start_ch5_rerun_4gpu.sh
 ```
+
+训练完成后生成 release 报告：
+
+```bash
+../../.venv/bin/python scripts/06_ch5_rerun_queue.py report
+```
+
+输出目录：
+
+```text
+experiments/03_loso_model_comparison/result/ch5_10model_compare_0p7m_<timestamp>/
+```
+
+报告目录会包含：
+
+| 文件 | 作用 |
+|---|---|
+| `RELEASE_REPORT.md` | release 用完整实验报告 |
+| `model_comparison_summary.csv` | 按 Count MAE 排序的模型级结果 |
+| `fold_results_all.csv` | 150 条 fold-level 原始测试指标 |
+| `environment.json` | Python / PyTorch / CUDA / GPU / git revision |
+| `ch5_rerun_jobs_0p7m.yaml` | 精确 job 队列 |
+| `structure_compare_v2_0p7m.yaml` | 精确模型与训练配置 |
+
+## 论文结论口径
+
+当前结果应写作“10 个模型结构横评”，不是严格组件消融。严格消融需要从同一个完整模型中逐项去除组件，而本实验是将每个完整模型调到接近 0.7M 参数规模后进行公平横向比较。
+
+推荐结论：
+
+> 在统一约 0.7M 参数规模下，BiCRNN 取得最低 Count MAE；TCN-Attn、TCN+UniGRU、TCN+BiGRU 表现接近，属于第一梯队。CRNN 与 BiGRU 也明显优于纯 CNN 类模型。整体结果说明，咳嗽计数任务需要显式时序建模，单纯卷积结构不足以稳定完成事件计数。

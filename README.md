@@ -30,7 +30,7 @@ experiments/03_loso_model_comparison/scripts/06_ch5_rerun_queue.py
 experiments/03_loso_model_comparison/RERUN_0P7M_REMOTE_GUIDE.md
 ```
 
-当前正式队列包含 `8` 个 0.7M 级模型结构横向对比和 `4` 个 0.7M 级 TCN/BiGRU 消融任务。四张 4090 单机运行时，启动 4 个 shard，每张卡串行跑 3 个 LOSO 任务。
+当前正式队列包含 `10` 个 0.7M 级完整模型结构横向对比任务，不再单独设置消融实验。四张 4090 单机运行时，启动 4 个 shard，其中两张卡串行跑 3 个 LOSO 任务，另外两张卡串行跑 2 个 LOSO 任务。
 
 ### 1. 数据预处理 (首次运行)
 
@@ -92,7 +92,7 @@ python scripts/01_train.py --config ../../configs/edgeai_best_tcn_gru.yaml
 
 ```bash
 # 使用 uv (推荐)
-uv sync
+uv sync --locked
 
 # 或使用 pip
 python -m pip install -e .
@@ -110,10 +110,10 @@ python -m pip install -e .
 
 ```powershell
 cd experiments\03_loso_model_comparison
-..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id M2 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
+..\..\.venv\Scripts\python.exe scripts\03_loso.py --model-id S9 --device cuda --epochs 1 --max-folds 1 --batch-size 8 --num-workers 0
 ```
 
-优先复跑第5章 0.7M 结构对比与消融：
+优先复跑第5章 0.7M 结构横评：
 
 ```powershell
 ..\..\.venv\Scripts\python.exe scripts\06_ch5_rerun_queue.py audit
@@ -135,7 +135,7 @@ cd experiments\03_loso_model_comparison
 
 在对应的 `configs/*.yaml` 中调整：
 
-- `model.name`: gru | tcn | tcn_gru | cnn1d | crnn
+- `model.name`: cnn1d | dscnn | rescnn | crnn | bicrnn | gru | tcn | tcn_attn | tcn_gru
 - `train.count_loss_weight`: count loss权重 (默认 0.2)
 - `train.under_count_weight`: 假阳性惩罚权重 (默认 0.0)
 - `data.pos_threshold`: 正样本阈值 (默认 0.01)

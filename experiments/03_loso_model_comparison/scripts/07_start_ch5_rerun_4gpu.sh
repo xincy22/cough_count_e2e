@@ -9,7 +9,7 @@ PYTHON_BIN="${PYTHON_BIN:-../../.venv/bin/python}"
 echo "[1/3] Python: $PYTHON_BIN"
 "$PYTHON_BIN" -c "import torch; print('torch=', torch.__version__, 'cuda=', torch.cuda.is_available(), 'gpus=', torch.cuda.device_count())"
 
-echo "[2/3] Audit Chapter 5 rerun queue"
+echo "[2/3] Audit Chapter 5 10-model queue"
 "$PYTHON_BIN" scripts/06_ch5_rerun_queue.py audit
 
 echo "[3/3] Start four shard workers"
@@ -29,7 +29,7 @@ echo
 echo "Monitor:"
 echo "  nvidia-smi"
 echo "  tail -f shard0.out"
-echo "  tail -f runs/ch5_rerun_0p7m_logs/J00_cnn1d_0p7m.log"
+echo "  tail -f runs/ch5_10model_compare_0p7m_logs/J00_cnn1d_0p7m.log"
 echo
 echo "After all shards finish:"
 echo "  $PYTHON_BIN scripts/06_ch5_rerun_queue.py report"
