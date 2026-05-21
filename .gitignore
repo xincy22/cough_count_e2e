@@ -41,6 +41,7 @@ experiments/*/runs_archive/
 experiments/*/data/
 experiments/*/result/
 experiments/*/result_test_*/
+experiments/*/release/
 tmp_report_test/
 *.pt
 *.pth
