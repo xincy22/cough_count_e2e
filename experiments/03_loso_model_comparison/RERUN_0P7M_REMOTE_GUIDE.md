@@ -115,11 +115,11 @@ result/ch5_10model_compare_0p7m_<timestamp>/
 Important files:
 
 ```text
-RELEASE_REPORT.md
-model_comparison_summary.csv
-fold_results_all.csv
-missing_jobs.csv
-environment.json
-ch5_rerun_jobs_0p7m.yaml
-structure_compare_v2_0p7m.yaml
+REPORT.md
+tables/model_summary.csv
+tables/fold_results.csv
+tables/missing_jobs.csv
+reproducibility/environment.json
+reproducibility/ch5_rerun_jobs_0p7m.yaml
+reproducibility/structure_compare_v2_0p7m.yaml
 ```

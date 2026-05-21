@@ -67,13 +67,14 @@ BiCRNN 在本轮统一 0.7M 参数规模实验中取得最低 Count MAE，为 0.
 
 | 文件 | 作用 |
 |---|---|
-| `model_comparison_summary.csv` | 10 个模型的主结果表，按 Count MAE 排名 |
-| `fold_results_all.csv` | 150 条 fold-level 原始测试指标 |
-| `model_architecture_summary.csv` | 每个模型的参数量和结构配置 |
-| `reproducibility_manifest.json` | 数据、训练、环境、配置路径的机器可读说明 |
-| `structure_compare_v2_0p7m.yaml` | 完整模型和训练配置 |
-| `ch5_rerun_jobs_0p7m.yaml` | 4 GPU 队列计划 |
-| `source_manifest.json` | 原始远端 fold JSON 来源路径 |
+| `REPORT.md` | 当前完整实验报告 |
+| `tables/model_summary.csv` | 10 个模型的主结果表，按 Count MAE 排名 |
+| `tables/fold_results.csv` | 150 条 fold-level 原始测试指标 |
+| `tables/model_architecture.csv` | 每个模型的参数量和结构配置 |
+| `reproducibility/manifest.json` | 数据、训练、环境、配置路径的机器可读说明 |
+| `reproducibility/structure_compare_v2_0p7m.yaml` | 完整模型和训练配置 |
+| `reproducibility/ch5_rerun_jobs_0p7m.yaml` | 4 GPU 队列计划 |
+| `reproducibility/source_manifest.json` | 原始远端 fold JSON 来源路径 |
 
 ## 7. 复现命令
 

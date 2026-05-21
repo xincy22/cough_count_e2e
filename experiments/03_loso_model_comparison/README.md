@@ -109,12 +109,13 @@ experiments/03_loso_model_comparison/result/ch5_10model_compare_0p7m_<timestamp>
 
 | 文件 | 作用 |
 |---|---|
-| `RELEASE_REPORT.md` | release 用完整实验报告 |
-| `model_comparison_summary.csv` | 按 Count MAE 排序的模型级结果 |
-| `fold_results_all.csv` | 150 条 fold-level 原始测试指标 |
-| `environment.json` | Python / PyTorch / CUDA / GPU / git revision |
-| `ch5_rerun_jobs_0p7m.yaml` | 精确 job 队列 |
-| `structure_compare_v2_0p7m.yaml` | 精确模型与训练配置 |
+| `REPORT.md` | release 用完整实验报告 |
+| `tables/model_summary.csv` | 按 Count MAE 排序的模型级结果 |
+| `tables/fold_results.csv` | 150 条 fold-level 原始测试指标 |
+| `tables/model_architecture.csv` | 模型结构与参数量表 |
+| `reproducibility/environment.json` | Python / PyTorch / CUDA / GPU / git revision |
+| `reproducibility/ch5_rerun_jobs_0p7m.yaml` | 精确 job 队列 |
+| `reproducibility/structure_compare_v2_0p7m.yaml` | 精确模型与训练配置 |
 
 ## 论文结论口径
 

@@ -272,6 +272,10 @@ def report(plan: dict[str, Any]) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = EXP_DIR / "result" / f"ch5_10model_compare_0p7m_{timestamp}"
     out_dir.mkdir(parents=True, exist_ok=True)
+    tables_dir = out_dir / "tables"
+    repro_dir = out_dir / "reproducibility"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    repro_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, Any]] = []
     fold_rows: list[dict[str, Any]] = []
@@ -350,7 +354,7 @@ def report(plan: dict[str, Any]) -> Path:
         "config",
         "summary_json",
     ]
-    write_csv(out_dir / "model_comparison_summary.csv", summary_fields, ranked_rows)
+    write_csv(tables_dir / "model_summary.csv", summary_fields, ranked_rows)
 
     fold_fields = [
         "job_id",
@@ -367,25 +371,25 @@ def report(plan: dict[str, Any]) -> Path:
         "summary_json",
     ]
     write_csv(
-        out_dir / "fold_results_all.csv",
+        tables_dir / "fold_results.csv",
         fold_fields,
         sorted(fold_rows, key=lambda r: (r["model_id"], r["fold"])),
     )
 
     write_csv(
-        out_dir / "missing_jobs.csv",
+        tables_dir / "missing_jobs.csv",
         ["job_id", "group", "model_id", "model_name", "config"],
         missing,
     )
 
     env = runtime_environment()
-    (out_dir / "environment.json").write_text(
+    (repro_dir / "environment.json").write_text(
         json.dumps(env, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    shutil.copyfile(DEFAULT_PLAN, out_dir / "ch5_rerun_jobs_0p7m.yaml")
+    shutil.copyfile(DEFAULT_PLAN, repro_dir / "ch5_rerun_jobs_0p7m.yaml")
     for config_path in sorted({EXP_DIR / str(job["config"]) for job in plan["jobs"]}):
-        shutil.copyfile(config_path, out_dir / config_path.name)
+        shutil.copyfile(config_path, repro_dir / config_path.name)
 
     lines = [
         "# Chapter 5 10-Model LOSO Comparison Report",
@@ -447,17 +451,17 @@ def report(plan: dict[str, Any]) -> Path:
             "",
             "## Files",
             "",
-            "- `model_comparison_summary.csv`: ranked model-level summary.",
-            "- `fold_results_all.csv`: all fold-level test metrics.",
-            "- `missing_jobs.csv`: incomplete jobs, if any.",
-            "- `environment.json`: runtime and CUDA/PyTorch environment.",
-            "- `ch5_rerun_jobs_0p7m.yaml`: exact job queue.",
-            "- `structure_compare_v2_0p7m.yaml`: exact model/data/training configuration.",
+            "- `REPORT.md`: this experiment report.",
+            "- `tables/model_summary.csv`: ranked model-level summary.",
+            "- `tables/fold_results.csv`: all fold-level test metrics.",
+            "- `tables/missing_jobs.csv`: incomplete jobs, if any.",
+            "- `reproducibility/environment.json`: runtime and CUDA/PyTorch environment.",
+            "- `reproducibility/ch5_rerun_jobs_0p7m.yaml`: exact job queue.",
+            "- `reproducibility/structure_compare_v2_0p7m.yaml`: exact model/data/training configuration.",
         ]
     )
     text = "\n".join(lines) + "\n"
-    (out_dir / "RELEASE_REPORT.md").write_text(text, encoding="utf-8")
-    (out_dir / "README.md").write_text(text, encoding="utf-8")
+    (out_dir / "REPORT.md").write_text(text, encoding="utf-8")
     print(f"Wrote report to {out_dir}")
     return out_dir
 
